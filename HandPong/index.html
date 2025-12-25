@@ -1,0 +1,1495 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+  <title>Hand Pong — Gesture Table Tennis</title>
+
+  <style>
+    :root{
+      --bg0:#070a12;
+      --bg1:#0b1630;
+      --card: rgba(255,255,255,.08);
+      --stroke: rgba(255,255,255,.14);
+      --txt: rgba(255,255,255,.92);
+      --muted: rgba(255,255,255,.62);
+      --good:#38f2b3;
+      --bad:#ff6b6b;
+      --shadow: 0 20px 60px rgba(0,0,0,.45);
+      --r: 18px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      color:var(--txt);
+      min-height:100vh;
+      background:
+        radial-gradient(1200px 700px at 20% 15%, rgba(110,231,255,.18), transparent 60%),
+        radial-gradient(900px 600px at 85% 25%, rgba(255,94,219,.16), transparent 60%),
+        radial-gradient(900px 700px at 55% 95%, rgba(56,242,179,.10), transparent 60%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+      overflow:hidden;
+    }
+    .wrap{
+      width:min(1200px, 96vw);
+      margin: 18px auto;
+      display:grid;
+      grid-template-columns: 340px 1fr;
+      gap:14px;
+      align-items:stretch;
+    }
+    .card{
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      border-radius: var(--r);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      overflow:hidden;
+    }
+    .left{ display:flex; flex-direction:column; min-height: 680px; }
+    .brand{
+      padding:14px 14px 10px;
+      display:flex; align-items:center; gap:10px;
+    }
+    .logo{
+      width:38px;height:38px;border-radius:12px;
+      background: linear-gradient(135deg, rgba(110,231,255,.9), rgba(255,94,219,.8));
+      box-shadow: 0 10px 30px rgba(110,231,255,.15);
+      display:grid; place-items:center;
+      font-weight:900; color:#06101e;
+    }
+    .brand h1{ font-size:16px; margin:0; line-height:1.1; letter-spacing:.2px; }
+    .brand .sub{ font-size:12px; color:var(--muted); margin-top:2px; }
+
+    .camBox{
+      margin: 0 14px 12px;
+      border-radius: 14px;
+      border:1px solid var(--stroke);
+      overflow:hidden;
+      position:relative;
+      background: rgba(0,0,0,.35);
+    }
+    .camBox .label{
+      position:absolute; left:10px; top:10px;
+      font-size:12px; color:var(--muted);
+      padding:6px 10px;
+      border:1px solid var(--stroke);
+      border-radius:999px;
+      background: rgba(0,0,0,.35);
+      backdrop-filter: blur(10px);
+      z-index:2;
+    }
+    video{ width:100%; display:block; transform: scaleX(-1); }
+    canvas#camOverlay{
+      position:absolute; inset:0; width:100%; height:100%;
+      pointer-events:none;
+    }
+
+    .controls{ padding: 10px 14px 14px; display:grid; gap:10px; }
+    .row{ display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+    .pill{
+      display:flex; gap:8px; align-items:center;
+      padding:10px 12px;
+      border-radius: 14px;
+      border:1px solid var(--stroke);
+      background: rgba(0,0,0,.22);
+      width:100%;
+    }
+    .pill b{ font-size:12px; letter-spacing:.2px; color:var(--muted); font-weight:650; }
+    .pill span{ font-size:13px; }
+
+    select, button, input{
+      appearance:none;
+      border-radius: 14px;
+      border:1px solid var(--stroke);
+      background: rgba(0,0,0,.22);
+      color: var(--txt);
+      padding: 10px 12px;
+      font-weight:650;
+      cursor:pointer;
+      outline:none;
+    }
+    input{ cursor:text; width:100%; }
+    button{
+      background: linear-gradient(135deg, rgba(110,231,255,.20), rgba(255,94,219,.18));
+      transition: transform .06s ease, filter .2s ease;
+    }
+    button:active{ transform: translateY(1px) scale(.99); }
+    .ghost{ background: rgba(255,255,255,.06); }
+
+    .hint{
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.4;
+      padding: 0 14px 14px;
+    }
+    .kbd{
+      display:inline-block;
+      padding:2px 8px;
+      border-radius:999px;
+      border:1px solid var(--stroke);
+      background: rgba(255,255,255,.06);
+      font-size:11px;
+      color: var(--txt);
+      margin:0 2px;
+    }
+
+    .right{
+      position:relative;
+      min-height: 680px;
+      display:flex;
+      flex-direction:column;
+    }
+    .topbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--stroke);
+      gap:12px;
+      flex-wrap:wrap;
+    }
+    .score{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      font-weight:900;
+      letter-spacing:.8px;
+    }
+    .score .s{
+      font-size:34px;
+      padding:6px 12px;
+      border-radius: 14px;
+      border:1px solid var(--stroke);
+      background: rgba(0,0,0,.22);
+      min-width:60px;
+      text-align:center;
+    }
+    .score .mid{
+      font-size:12px;
+      color: var(--muted);
+      font-weight:750;
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+      text-transform:uppercase;
+    }
+    .status{
+      font-size:12px;
+      color:var(--muted);
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+      text-align:right;
+      margin-left:auto;
+    }
+    .dot{
+      width:9px;height:9px;border-radius:99px;
+      background: rgba(255,255,255,.25);
+      box-shadow: 0 0 0 6px rgba(255,255,255,.04);
+    }
+    .dot.on{
+      background: var(--good);
+      box-shadow: 0 0 0 6px rgba(56,242,179,.14);
+    }
+
+    .gameArea{
+      position:relative;
+      flex:1;
+      padding: 14px;
+      display:grid;
+      place-items:center;
+    }
+    canvas#game{
+      width:100%;
+      height:100%;
+      border-radius: 16px;
+      border: 1px solid var(--stroke);
+      background:
+        radial-gradient(600px 350px at 50% 20%, rgba(110,231,255,.12), transparent 65%),
+        radial-gradient(600px 350px at 50% 85%, rgba(255,94,219,.10), transparent 70%),
+        linear-gradient(180deg, rgba(0,0,0,.22), rgba(0,0,0,.40));
+      box-shadow: 0 18px 50px rgba(0,0,0,.45);
+      touch-action:none;
+    }
+
+    .overlay{
+      position:absolute;
+      inset:14px;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding:14px;
+      z-index:5;
+    }
+    .overlay.on{ display:flex; }
+    .modal{
+      width:min(760px, 92%);
+      border-radius: 18px;
+      border: 1px solid var(--stroke);
+      background: rgba(0,0,0,.55);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      box-shadow: var(--shadow);
+      padding: 16px;
+    }
+    .modal h2{ margin:0 0 6px; font-size:18px; letter-spacing:.2px; }
+    .modal p{ margin:0 0 12px; color:var(--muted); font-size:13px; line-height:1.45; }
+    .grid{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin: 10px 0 14px; }
+    .stat{
+      padding:10px 12px;
+      border-radius: 14px;
+      border:1px solid var(--stroke);
+      background: rgba(255,255,255,.06);
+    }
+    .stat b{ display:block; font-size:12px; color:var(--muted); letter-spacing:.2px; margin-bottom:4px; }
+    .stat span{ font-size:16px; font-weight:900; }
+    .actions{ display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; align-items:center; }
+
+    .friendBox{
+      margin-top:10px;
+      padding:12px;
+      border-radius:14px;
+      border:1px solid var(--stroke);
+      background: rgba(255,255,255,.05);
+      display:grid;
+      gap:10px;
+    }
+    .two{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; letter-spacing: .7px; }
+    .nameRow{
+      display:grid;
+      grid-template-columns: 1fr auto;
+      gap:10px;
+      align-items:center;
+      margin: 8px 0 2px;
+    }
+
+    .mobileBar{
+      display:none;
+      width:100%;
+      padding:10px 12px;
+      border-top:1px solid var(--stroke);
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+      background: rgba(0,0,0,.25);
+    }
+    .mobileBar .label{ font-size:12px; color:var(--muted); white-space:nowrap; }
+    input[type="range"]{
+      -webkit-appearance:none;
+      width:100%;
+      height:10px;
+      border-radius:999px;
+      background: rgba(255,255,255,.14);
+      outline:none;
+      border:1px solid rgba(255,255,255,.12);
+      padding:0;
+    }
+    input[type="range"]::-webkit-slider-thumb{
+      -webkit-appearance:none;
+      width:28px; height:28px; border-radius:999px;
+      border:1px solid rgba(255,255,255,.28);
+      background: linear-gradient(135deg, rgba(110,231,255,.85), rgba(255,94,219,.75));
+      box-shadow: 0 10px 24px rgba(0,0,0,.35);
+      cursor:pointer;
+    }
+
+    @media (max-width: 980px){
+      body{overflow:auto}
+      .wrap{grid-template-columns:1fr}
+      .left{min-height:unset}
+      .right{min-height:520px}
+    }
+    @media (max-width: 640px){
+      body{overflow:auto}
+      .wrap{width:100vw; margin:0; grid-template-columns:1fr; gap:0}
+      .left{display:none}
+      .right{min-height:100vh; border-radius:0}
+      .card{border-radius:0}
+      .gameArea{padding:10px}
+      .mobileBar{display:flex}
+      .topbar{padding:10px}
+      .score .s{font-size:28px}
+    }
+
+    .rotateHint{
+      position:fixed; inset:0;
+      display:none;
+      place-items:center;
+      background: rgba(0,0,0,.72);
+      z-index:9999;
+      padding:20px;
+      text-align:center;
+    }
+    .rotateHint.on{ display:grid; }
+    .rotateHint .box{
+      max-width:420px;
+      border:1px solid var(--stroke);
+      border-radius:18px;
+      background: rgba(0,0,0,.45);
+      padding:16px;
+      backdrop-filter: blur(14px);
+    }
+    .rotateHint h3{ margin:0 0 8px; }
+    .rotateHint p{ margin:0; color:var(--muted); font-size:13px; line-height:1.4; }
+  </style>
+
+  <!-- MediaPipe Hands (desktop) -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+</head>
+
+<body>
+  <div class="rotateHint" id="rotateHint">
+    <div class="box">
+      <h3>Rotate your phone 📱↔️</h3>
+      <p>Use <b>Landscape</b>. Camera is hidden on mobile—use the slider to move.</p>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <!-- LEFT -->
+    <div class="card left">
+      <div class="brand">
+        <div class="logo">🤚</div>
+        <div>
+          <h1>Hand Pong</h1>
+          <div class="sub">Pinch or click to serve • Mouse fallback if denied</div>
+        </div>
+      </div>
+
+      <div class="camBox">
+        <div class="label" id="camLabel">Camera: starting…</div>
+        <video id="video" playsinline muted></video>
+        <canvas id="camOverlay"></canvas>
+      </div>
+
+      <div class="controls">
+        <div class="row">
+          <div class="pill">
+            <b>CONTROL</b>
+            <span id="controlState">Initializing…</span>
+          </div>
+        </div>
+
+        <div class="row">
+          <select id="modeSel" style="flex:1">
+            <option value="ai" selected>Play vs AI</option>
+            <option value="friend">Play vs Friend (Online)</option>
+          </select>
+          <button id="btnMute" class="ghost">🔊 Sound</button>
+        </div>
+
+        <div class="row">
+          <select id="difficulty" style="flex:1">
+            <option value="easy">Easy</option>
+            <option value="normal" selected>Normal</option>
+            <option value="hard">Hard</option>
+            <option value="insane">Insane</option>
+          </select>
+        </div>
+
+        <div class="row">
+          <button id="btnStart" style="flex:1">▶ Start / Serve</button>
+          <button id="btnReset" class="ghost">↻ Reset</button>
+        </div>
+
+        <div class="row">
+          <div class="pill">
+            <b>SERVE</b>
+            <span>Pinch OR click/tap table (trackpad friendly)</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="hint">
+        • If camera permission is denied → mouse/trackpad still works<br>
+        • Mobile: slider only (camera hidden)<br>
+      </div>
+    </div>
+
+    <!-- RIGHT -->
+    <div class="card right">
+      <div class="topbar">
+        <div class="score">
+          <div class="s" id="pScore">0</div>
+          <div class="mid">
+            <div id="labelL">YOU</div>
+            <div style="opacity:.7">vs</div>
+            <div id="labelR">AI</div>
+          </div>
+          <div class="s" id="aScore">0</div>
+        </div>
+
+        <div class="status">
+          <div style="display:flex;gap:8px;align-items:center;">
+            <div class="dot" id="dotHand"></div><div>Hand</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <div class="dot" id="dotPinch"></div><div>Pinch</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <div class="dot" id="dotNet"></div><div>Friend</div>
+          </div>
+          <div id="fps" style="opacity:.85">FPS: —</div>
+        </div>
+      </div>
+
+      <div class="gameArea">
+        <canvas id="game"></canvas>
+
+        <div class="overlay on" id="overlay">
+          <div class="modal">
+            <h2 id="ovTitle">Hand Pong</h2>
+            <p id="ovMsg">Enter your name + pick mode. First to <b>11</b>, win by <b>2</b>.</p>
+
+            <div class="nameRow">
+              <input id="nameInput" placeholder="Your name" maxlength="14"/>
+              <button id="saveNameBtn" class="ghost">Save</button>
+            </div>
+
+            <div class="grid">
+              <div class="stat"><b>Mode</b><span id="ovMode">AI</span></div>
+              <div class="stat"><b>Rallies</b><span id="ovRallies">0</span></div>
+            </div>
+
+            <div class="friendBox" id="friendBox" style="display:none">
+              <div class="two">
+                <button id="hostBtn">Generate Code</button>
+                <button id="joinBtn" class="ghost">Enter Code</button>
+              </div>
+
+              <div id="hostPane" style="display:none; gap:10px;">
+                <div class="pill">
+                  <b>YOUR CODE</b>
+                  <span class="mono" id="roomCode">—</span>
+                </div>
+                <button id="copyCodeBtn" class="ghost">Copy</button>
+              </div>
+
+              <div id="joinPane" style="display:none; gap:10px;">
+                <input id="codeInput" class="mono" placeholder="Enter code (e.g. A9K3QF)" maxlength="10"/>
+                <button id="joinNowBtn">Join</button>
+              </div>
+
+              <div class="pill">
+                <b>STATUS</b>
+                <span id="netStatus">Not connected</span>
+              </div>
+
+              <div class="hint" style="padding:0;margin:0;">
+                Host generates a code → friend enters the same code.
+              </div>
+            </div>
+
+            <div class="actions">
+              <button id="ovPlay">▶ Play</button>
+              <button id="ovClose" class="ghost">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mobileBar" id="mobileBar">
+        <div class="label">Move</div>
+        <input id="mobileSlider" type="range" min="0" max="100" value="50"/>
+        <button id="mobileServe" class="ghost">Serve</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // =========================
+    //  SAFETY: DON'T CRASH
+    // =========================
+    window.addEventListener("error", (e)=>{
+      console.error("JS Error:", e.error || e.message);
+      alert("Game crashed due to a script error. Open Console for details.");
+    });
+
+    // ---------- DOM ----------
+    const $ = (id)=>document.getElementById(id);
+    const video = $("video");
+    const camOverlay = $("camOverlay");
+    const camCtx = camOverlay.getContext("2d");
+
+    const gameCanvas = $("game");
+    const g = gameCanvas.getContext("2d");
+
+    const pScoreEl = $("pScore");
+    const aScoreEl = $("aScore");
+
+    const controlState = $("controlState");
+    const camLabel = $("camLabel");
+
+    const dotHand = $("dotHand");
+    const dotPinch = $("dotPinch");
+    const dotNet = $("dotNet");
+
+    const difficultySel = $("difficulty");
+    const modeSel = $("modeSel");
+
+    const btnStart = $("btnStart");
+    const btnReset = $("btnReset");
+    const btnMute  = $("btnMute");
+
+    const overlay = $("overlay");
+    const ovTitle = $("ovTitle");
+    const ovMsg   = $("ovMsg");
+    const ovMode  = $("ovMode");
+    const ovRallies = $("ovRallies");
+    const ovPlay  = $("ovPlay");
+    const ovClose = $("ovClose");
+
+    const friendBox = $("friendBox");
+    const hostBtn = $("hostBtn");
+    const joinBtn = $("joinBtn");
+    const hostPane = $("hostPane");
+    const joinPane = $("joinPane");
+    const roomCodeEl = $("roomCode");
+    const copyCodeBtn = $("copyCodeBtn");
+    const codeInput = $("codeInput");
+    const joinNowBtn = $("joinNowBtn");
+    const netStatus = $("netStatus");
+
+    const labelL = $("labelL");
+    const labelR = $("labelR");
+
+    const fpsEl = $("fps");
+
+    const mobileSlider = $("mobileSlider");
+    const mobileServe = $("mobileServe");
+
+    const rotateHint = $("rotateHint");
+
+    const nameInput = $("nameInput");
+    const saveNameBtn = $("saveNameBtn");
+
+    // ---------- Helpers ----------
+    const clamp = (v,a,b)=>Math.min(b, Math.max(a,v));
+
+    function setOverlay(on){ overlay.classList.toggle("on", !!on); }
+
+    function fitCanvas(canvas, ctx, w, h){
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      canvas.style.width = w + "px";
+      canvas.style.height = h + "px";
+      canvas.width = Math.floor(w * dpr);
+      canvas.height = Math.floor(h * dpr);
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+    }
+
+    function resize(){
+      const area = gameCanvas.parentElement.getBoundingClientRect();
+      fitCanvas(gameCanvas, g, area.width, area.height);
+
+      const vRect = video.getBoundingClientRect();
+      fitCanvas(camOverlay, camCtx, vRect.width, vRect.height);
+    }
+    window.addEventListener("resize", resize);
+
+    function roundRectPath(ctx, x,y,w,h,r){
+      r = Math.max(0, Math.min(r, Math.min(w,h)/2));
+      ctx.beginPath();
+      ctx.moveTo(x+r, y);
+      ctx.arcTo(x+w, y, x+w, y+h, r);
+      ctx.arcTo(x+w, y+h, x, y+h, r);
+      ctx.arcTo(x, y+h, x, y, r);
+      ctx.arcTo(x, y, x+w, y, r);
+      ctx.closePath();
+    }
+
+    // ---------- Audio ----------
+    let audioOn = true;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    const audioCtx = AC ? new AC() : null;
+
+    async function audioResume(){
+      if(audioCtx && audioCtx.state === "suspended"){
+        try{ await audioCtx.resume(); }catch{}
+      }
+    }
+
+    function beep(freq=440, dur=0.06, type="sine", gain=0.08){
+      if(!audioOn || !audioCtx) return;
+      const t0 = audioCtx.currentTime;
+      const o = audioCtx.createOscillator();
+      const g0 = audioCtx.createGain();
+      o.type = type;
+      o.frequency.setValueAtTime(freq, t0);
+      g0.gain.setValueAtTime(0.0001, t0);
+      g0.gain.exponentialRampToValueAtTime(gain, t0 + 0.01);
+      g0.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      o.connect(g0).connect(audioCtx.destination);
+      o.start(t0);
+      o.stop(t0 + dur + 0.01);
+    }
+
+    btnMute.addEventListener("click", async ()=>{
+      await audioResume();
+      audioOn = !audioOn;
+      btnMute.textContent = audioOn ? "🔊 Sound" : "🔇 Muted";
+      beep(audioOn ? 660 : 220, 0.08, "triangle", 0.08);
+    });
+
+    // ---------- State ----------
+    const state = {
+      running:false,
+      ended:false,
+      rallies:0,
+
+      // name + center comment
+      playerName:"Player",
+      commentText:"",
+      commentUntil:0,
+
+      // input
+      cameraDenied:false,
+      handPresent:false,
+      pinchNow:false,
+      lastPinchAt:0,
+      handYNorm:0.5,
+      mouseYNorm:0.5,
+
+      // mode/network
+      mode:"ai", // ai | friend
+      net:{connected:false, role:null, room:null},
+      remoteYNorm:0.5,
+    };
+
+    const score = {p:0, a:0};
+
+    const ent = {
+      table:{pad:34},
+      ball:{x:0,y:0,vx:0,vy:0,r:8},
+      paddleP:{x:0,y:0,w:16,h:110},
+      paddleA:{x:0,y:0,w:16,h:110},
+    };
+
+    const diff = {
+      easy:  { ai:0.045, ball:1.00, paddleH:120, spin:0.60 },
+      normal:{ ai:0.070, ball:1.12, paddleH:110, spin:0.75 },
+      hard:  { ai:0.100, ball:1.25, paddleH:105, spin:0.90 },
+      insane:{ ai:0.140, ball:1.35, paddleH:100, spin:1.00 },
+    };
+
+    function currentDiff(){ return diff[difficultySel.value] || diff.normal; }
+
+    function showComment(text, ms=1200){
+      state.commentText = text;
+      state.commentUntil = performance.now() + ms;
+    }
+
+    function updateOverlayText(){
+      ovMode.textContent = state.mode === "ai"
+        ? `AI • ${difficultySel.value.toUpperCase()}`
+        : "FRIEND • ONLINE";
+      ovRallies.textContent = String(state.rallies);
+    }
+
+    function updateLabels(){
+      labelL.textContent = state.playerName.toUpperCase();
+      labelR.textContent = state.mode === "friend" ? "FRIEND" : "AI";
+    }
+
+    // ---------- Match logic ----------
+    function resetMatch(){
+      score.p = 0; score.a = 0;
+      state.rallies = 0;
+      state.ended = false;
+      state.running = false;
+
+      pScoreEl.textContent = "0";
+      aScoreEl.textContent = "0";
+
+      serve(true);
+
+      ovTitle.textContent = "Hand Pong";
+      ovMsg.innerHTML = `First to <b>11</b>, win by <b>2</b>. Serve by <b>pinch</b> or <b>click/tap</b>.`;
+
+      updateOverlayText();
+      setOverlay(true);
+    }
+
+    function winCheck(){
+      const need=11;
+      const lead=Math.abs(score.p-score.a);
+      if((score.p>=need || score.a>=need) && lead>=2){
+        state.ended=true;
+        state.running=false;
+        const youWin = score.p > score.a;
+        ovTitle.textContent = youWin ? `WAH ${state.playerName} WAH` : (state.mode==="friend" ? "FRIEND WINS 🎯" : "AI WINS 🤖");
+        ovMsg.innerHTML = `Press <b>Play</b> or pinch/click to restart.`;
+        showComment(youWin ? `🏆 ${state.playerName} WINS!` : `😵 Tough luck, ${state.playerName}!`, 2000);
+        setOverlay(true);
+        updateOverlayText();
+
+        // friend broadcast if host
+        if(state.mode==="friend" && state.net.connected && state.net.role==="host"){
+          netSend({t:"ended", p:score.p, a:score.a, r:state.rallies});
+        }
+        return true;
+      }
+      return false;
+    }
+
+    function addPoint(who){
+      if(who==="p") score.p++; else score.a++;
+      pScoreEl.textContent = String(score.p);
+      aScoreEl.textContent = String(score.a);
+
+      showComment(
+        who==="p" ? `⚡ Point for ${state.playerName}!`
+                  : `🤖 Point for ${state.mode==="friend"?"Friend":"AI"}!`,
+        1100
+      );
+      beep(who==="p" ? 740 : 260, 0.08, "triangle", 0.09);
+
+      if(state.mode==="friend" && state.net.connected && state.net.role==="host"){
+        netSend({t:"score", p:score.p, a:score.a, r:state.rallies});
+      }
+
+      if(!winCheck()){
+        serve(who==="p");
+      }
+    }
+
+    function serve(playerServes=true){
+      const W = gameCanvas.clientWidth;
+      const H = gameCanvas.clientHeight;
+      const d = currentDiff();
+
+      ent.paddleP.h = d.paddleH;
+      ent.paddleA.h = d.paddleH;
+
+      ent.paddleP.x = ent.table.pad + 26;
+      ent.paddleA.x = W - ent.table.pad - 26 - ent.paddleA.w;
+
+      ent.paddleP.y = H/2 - ent.paddleP.h/2;
+      ent.paddleA.y = H/2 - ent.paddleA.h/2;
+
+      const bx = playerServes ? ent.paddleP.x + 30 : ent.paddleA.x - 30;
+      ent.ball.x = bx;
+      ent.ball.y = H/2;
+
+      const base = 520 * d.ball;
+      const dir = playerServes ? 1 : -1;
+      const ang = (Math.random()*0.55 - 0.275);
+      ent.ball.vx = dir * base * (0.95 + Math.random()*0.10);
+      ent.ball.vy = base * ang;
+
+      state.running = false;
+      state.pinchNow = false;
+
+      controlState.textContent = state.handPresent
+        ? "Ready — pinch/click to serve"
+        : "Ready — mouse/trackpad";
+      showComment(`🔥 ${state.playerName} ready!`, 900);
+
+      // host sync for joiner
+      if(state.mode==="friend" && state.net.connected && state.net.role==="host"){
+        netSend({t:"state", s:packState()});
+      }
+    }
+
+    function startRound(){
+      if(state.ended) return;
+
+      // friend mode: join asks host to serve
+      if(state.mode==="friend"){
+        if(!state.net.connected){
+          showComment("❌ Connect first", 1200);
+          setOverlay(true);
+          return;
+        }
+        if(state.net.role==="join"){
+          netSend({t:"serve_req"});
+          showComment("📨 Serve request sent", 900);
+          setOverlay(false);
+          return;
+        }
+      }
+
+      state.running = true;
+      setOverlay(false);
+      showComment(`🔥 ${state.playerName} SERVES!`, 900);
+      beep(520, 0.06, "sine", 0.08);
+
+      if(state.mode==="friend" && state.net.connected && state.net.role==="host"){
+        netSend({t:"start"});
+      }
+    }
+
+    // ---------- Input (mouse/touch/slider) ----------
+    function setYFromClientY(clientY){
+      const r = gameCanvas.getBoundingClientRect();
+      const y = (clientY - r.top) / r.height;
+      state.mouseYNorm = clamp(y, 0, 1);
+    }
+
+    gameCanvas.addEventListener("mousemove", (e)=> setYFromClientY(e.clientY));
+
+    gameCanvas.addEventListener("touchstart", (e)=>{
+      e.preventDefault();
+      if(e.touches && e.touches[0]) setYFromClientY(e.touches[0].clientY);
+    }, {passive:false});
+    gameCanvas.addEventListener("touchmove", (e)=>{
+      e.preventDefault();
+      if(e.touches && e.touches[0]) setYFromClientY(e.touches[0].clientY);
+    }, {passive:false});
+
+    // Click/tap canvas: serve or boost
+    gameCanvas.addEventListener("click", async ()=>{
+      await audioResume();
+
+      if(state.ended){
+        resetMatch();
+        startRound();
+        return;
+      }
+      if(!state.running){
+        startRound();
+      } else {
+        // boost (host only in friend)
+        if(state.mode!=="friend" || state.net.role==="host"){
+          ent.ball.vx *= 1.06; ent.ball.vy *= 1.06;
+        } else {
+          netSend({t:"boost_req"});
+        }
+        beep(980, 0.05, "square", 0.08);
+        showComment(`💥 ${state.playerName} BOOST!`, 650);
+      }
+    });
+
+    mobileSlider.addEventListener("input", ()=>{
+      state.mouseYNorm = (100 - Number(mobileSlider.value)) / 100;
+    });
+    mobileServe.addEventListener("click", ()=> startRound());
+
+    // ---------- Buttons ----------
+    btnStart.addEventListener("click", async ()=>{
+      await audioResume();
+      if(state.ended) resetMatch();
+      startRound();
+    });
+
+    btnReset.addEventListener("click", async ()=>{
+      await audioResume();
+      resetMatch();
+      beep(300, 0.08, "square", 0.07);
+      if(state.mode==="friend" && state.net.connected){
+        netSend({t:"reset"});
+      }
+    });
+
+    ovPlay.addEventListener("click", async ()=>{
+      await audioResume();
+      if(state.ended) resetMatch();
+      startRound();
+    });
+
+    ovClose.addEventListener("click", ()=> setOverlay(false));
+
+    difficultySel.addEventListener("change", ()=>{
+      if(state.mode==="ai"){
+        updateOverlayText();
+        serve(true);
+        setOverlay(true);
+      }
+    });
+
+    // ---------- Name ----------
+    function saveName(){
+      const n = (nameInput.value || "").trim();
+      if(!n) return;
+      state.playerName = n.slice(0,14);
+      localStorage.setItem("handpong_name", state.playerName);
+      updateLabels();
+      updateOverlayText();
+      showComment(`👋 Welcome, ${state.playerName}!`, 1200);
+    }
+    saveNameBtn.addEventListener("click", saveName);
+    nameInput.addEventListener("keydown", (e)=>{ if(e.key==="Enter") saveName(); });
+
+    // ---------- Mobile orientation ----------
+    function checkOrientation(){
+      const isPhone = window.matchMedia("(max-width: 640px)").matches;
+      if(!isPhone){ rotateHint.classList.remove("on"); return; }
+      const portrait = window.innerHeight > window.innerWidth;
+      rotateHint.classList.toggle("on", portrait);
+    }
+    window.addEventListener("resize", checkOrientation);
+    window.addEventListener("orientationchange", checkOrientation);
+
+    // ---------- Mode Switch ----------
+    function updateModeUI(){
+      state.mode = modeSel.value;
+      const isFriend = state.mode==="friend";
+
+      friendBox.style.display = isFriend ? "block" : "none";
+      difficultySel.disabled = isFriend;
+
+      if(!isFriend && state.net.connected) netDisconnect();
+
+      updateLabels();
+      updateOverlayText();
+      resetMatch();
+    }
+    modeSel.addEventListener("change", updateModeUI);
+
+    // ---------- MediaPipe Hands (desktop only) ----------
+    let lastHand = null;
+    const dist = (a,b)=>Math.hypot(a.x-b.x, a.y-b.y);
+
+    function drawHand(landmarks){
+      camCtx.clearRect(0,0,camOverlay.width, camOverlay.height);
+      const W = camOverlay.clientWidth;
+      const H = camOverlay.clientHeight;
+
+      for(let i=0;i<landmarks.length;i++){
+        const p = landmarks[i];
+        const x = p.x * W, y = p.y * H;
+        camCtx.beginPath();
+        camCtx.arc(x,y, i===8 ? 7 : 4, 0, Math.PI*2);
+        camCtx.fillStyle = i===8 ? "rgba(110,231,255,.95)" : "rgba(255,255,255,.55)";
+        camCtx.shadowColor = "rgba(110,231,255,.55)";
+        camCtx.shadowBlur = i===8 ? 18 : 10;
+        camCtx.fill();
+        camCtx.shadowBlur = 0;
+      }
+
+      const t = landmarks[4], i = landmarks[8];
+      camCtx.beginPath();
+      camCtx.moveTo(t.x*W, t.y*H);
+      camCtx.lineTo(i.x*W, i.y*H);
+      camCtx.lineWidth = 3;
+      camCtx.strokeStyle = state.pinchNow ? "rgba(56,242,179,.95)" : "rgba(255,255,255,.25)";
+      camCtx.stroke();
+    }
+
+    function onResults(results){
+      const hands = results.multiHandLandmarks;
+      if(hands && hands.length){
+        lastHand = hands[0];
+        state.handPresent = true;
+        dotHand.classList.add("on");
+        camLabel.textContent = "Camera: hand detected ✅";
+
+        const idx = lastHand[8];
+        state.handYNorm = idx.y;
+
+        const pinchD = dist(lastHand[4], lastHand[8]);
+        const pinch = pinchD < 0.055;
+        state.pinchNow = pinch;
+        dotPinch.classList.toggle("on", pinch);
+
+        controlState.textContent = state.running ? "Playing — move finger" : "Ready — pinch/click";
+        drawHand(lastHand);
+      } else {
+        lastHand = null;
+        state.handPresent = false;
+        state.pinchNow = false;
+        dotHand.classList.remove("on");
+        dotPinch.classList.remove("on");
+        camLabel.textContent = state.cameraDenied ? "Camera denied ❌ (mouse works)" : "Camera: no hand (mouse)";
+        controlState.textContent = state.running ? "Playing — mouse/trackpad" : "Ready — mouse/trackpad";
+        camCtx.clearRect(0,0,camOverlay.width, camOverlay.height);
+      }
+    }
+
+    async function initHands(){
+      const isPhone = window.matchMedia("(max-width: 640px)").matches;
+      if(isPhone){
+        // Mobile: no camera
+        state.cameraDenied = true;
+        state.handPresent = false;
+        state.pinchNow = false;
+        dotHand.classList.remove("on");
+        dotPinch.classList.remove("on");
+        camLabel.textContent = "Camera hidden on mobile";
+        controlState.textContent = "Mobile — slider control";
+        camCtx.clearRect(0,0,camOverlay.width, camOverlay.height);
+        return;
+      }
+
+      // Desktop: request permission
+      state.cameraDenied = false;
+      camLabel.textContent = "Camera: requesting permission…";
+      controlState.textContent = "Allow camera (or deny → mouse works)";
+
+      try{
+        const hands = new Hands({
+          locateFile: (file)=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
+        hands.setOptions({
+          maxNumHands: 1,
+          modelComplexity: 1,
+          minDetectionConfidence: 0.6,
+          minTrackingConfidence: 0.6
+        });
+        hands.onResults(onResults);
+
+        const camera = new Camera(video, {
+          onFrame: async ()=>{ await hands.send({image: video}); },
+          width: 640,
+          height: 480
+        });
+
+        await camera.start();
+        camLabel.textContent = "Camera: running ✅";
+        state.cameraDenied = false;
+
+      } catch(err){
+        console.error(err);
+        // denied or blocked -> mouse fallback still works
+        state.cameraDenied = true;
+        state.handPresent = false;
+        state.pinchNow = false;
+        dotHand.classList.remove("on");
+        dotPinch.classList.remove("on");
+        camLabel.textContent = "Camera denied ❌ (mouse works)";
+        controlState.textContent = "Mouse control active — move cursor on table";
+        camCtx.clearRect(0,0,camOverlay.width, camOverlay.height);
+      }
+    }
+
+    // ---------- Friend Networking ----------
+    // If opened as file:// (local), use localhost server by default.
+    function getWsUrl(){
+      if(window.HANDPONG_SERVER && typeof window.HANDPONG_SERVER === "string"){
+        return window.HANDPONG_SERVER; // e.g. "wss://yourapp.onrender.com"
+      }
+      if(location.protocol === "file:"){
+        return "ws://localhost:8080";
+      }
+      const proto = (location.protocol === "https:") ? "wss" : "ws";
+      return proto + "://" + location.host; // includes port if any
+    }
+
+    let ws = null;
+
+    function randCode(n=6){
+      const chars="ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+      let s="";
+      for(let i=0;i<n;i++) s += chars[Math.floor(Math.random()*chars.length)];
+      return s;
+    }
+
+    function netSet(text, ok=false){
+      netStatus.textContent = text;
+      dotNet.classList.toggle("on", ok);
+    }
+
+    function netSend(obj){
+      if(!ws || ws.readyState !== 1) return;
+      ws.send(JSON.stringify({room: state.net.room, ...obj}));
+    }
+
+    function netDisconnect(){
+      try{ if(ws) ws.close(); }catch{}
+      ws = null;
+      state.net = {connected:false, role:null, room:null};
+      netSet("Not connected", false);
+      dotNet.classList.remove("on");
+      labelR.textContent = "FRIEND";
+    }
+
+    function packState(){
+      return {
+        running: state.running,
+        ended: state.ended,
+        rallies: state.rallies,
+        p: score.p, a: score.a,
+        ball: {...ent.ball},
+        pP: {y:ent.paddleP.y, h:ent.paddleP.h},
+        pA: {y:ent.paddleA.y, h:ent.paddleA.h},
+      };
+    }
+
+    function applyState(s){
+      state.running = !!s.running;
+      state.ended = !!s.ended;
+      state.rallies = s.rallies || 0;
+
+      score.p = s.p || 0;
+      score.a = s.a || 0;
+      pScoreEl.textContent = String(score.p);
+      aScoreEl.textContent = String(score.a);
+
+      if(s.ball){
+        ent.ball.x = s.ball.x; ent.ball.y = s.ball.y;
+        ent.ball.vx = s.ball.vx; ent.ball.vy = s.ball.vy;
+      }
+      if(s.pP){ ent.paddleP.y = s.pP.y; ent.paddleP.h = s.pP.h; }
+      if(s.pA){ ent.paddleA.y = s.pA.y; ent.paddleA.h = s.pA.h; }
+    }
+
+    function netConnect(role, room){
+      const url = getWsUrl();
+      state.net.role = role;
+      state.net.room = room;
+      state.net.connected = false;
+
+      try{ ws = new WebSocket(url); }
+      catch(e){ netSet("WebSocket failed (server not hosted)", false); return; }
+
+      netSet("Connecting…", false);
+
+      ws.onopen = ()=>{
+        ws.send(JSON.stringify({t:"hello", role, room, name: state.playerName}));
+      };
+
+      ws.onmessage = (ev)=>{
+        let msg=null;
+        try{ msg = JSON.parse(ev.data); }catch{ return; }
+
+        if(msg.t==="err"){ netSet("Error: "+(msg.m||"unknown"), false); return; }
+        if(msg.t==="ok_wait"){ netSet("Waiting for friend…", false); return; }
+        if(msg.t==="ok"){
+          state.net.connected = true;
+          netSet("Connected ✅", true);
+          showComment("✅ Connected!", 1000);
+          setOverlay(true);
+          return;
+        }
+        if(msg.t==="peer_left"){
+          state.net.connected = false;
+          netSet("Friend left ❌", false);
+          showComment("❌ Friend left", 1200);
+          setOverlay(true);
+          return;
+        }
+        if(msg.t==="peer_name"){
+          labelR.textContent = (msg.name || "FRIEND").toUpperCase();
+          return;
+        }
+
+        if(state.mode!=="friend") return;
+
+        if(msg.t==="paddle"){ state.remoteYNorm = clamp(msg.y,0,1); }
+        if(msg.t==="serve_req" && state.net.role==="host"){ startRound(); }
+        if(msg.t==="boost_req" && state.net.role==="host"){
+          ent.ball.vx *= 1.06; ent.ball.vy *= 1.06;
+        }
+        if(msg.t==="start" && state.net.role==="join"){
+          state.running = true;
+          setOverlay(false);
+          showComment("🎮 Match started!", 900);
+        }
+        if(msg.t==="reset"){ resetMatch(); }
+        if(msg.t==="state" && state.net.role==="join" && msg.s){ applyState(msg.s); }
+        if(msg.t==="score" && state.net.role==="join"){
+          score.p = msg.p; score.a = msg.a; state.rallies = msg.r || 0;
+          pScoreEl.textContent = String(score.p);
+          aScoreEl.textContent = String(score.a);
+          updateOverlayText();
+        }
+        if(msg.t==="ended" && state.net.role==="join"){
+          score.p = msg.p; score.a = msg.a; state.rallies = msg.r || state.rallies;
+          pScoreEl.textContent = String(score.p);
+          aScoreEl.textContent = String(score.a);
+          winCheck(); // will show overlay
+        }
+      };
+
+      ws.onerror = ()=> netSet("Server error (is it hosted?)", false);
+      ws.onclose = ()=>{ if(state.mode==="friend") netSet("Disconnected", false); state.net.connected=false; };
+    }
+
+    // Friend UI
+    hostBtn.addEventListener("click", ()=>{
+      hostPane.style.display = "grid";
+      joinPane.style.display = "none";
+      const code = randCode(6);
+      roomCodeEl.textContent = code;
+      netSet("Waiting for friend…", false);
+      netConnect("host", code);
+    });
+
+    joinBtn.addEventListener("click", ()=>{
+      hostPane.style.display = "none";
+      joinPane.style.display = "grid";
+      codeInput.value = "";
+      netSet("Enter code to join", false);
+    });
+
+    copyCodeBtn.addEventListener("click", async ()=>{
+      const code = roomCodeEl.textContent.trim();
+      try{
+        await navigator.clipboard.writeText(code);
+        await audioResume();
+        beep(740, 0.06, "triangle", 0.08);
+        netSet("Code copied ✅", false);
+        showComment("📋 Code copied!", 900);
+      }catch{
+        netSet("Copy failed — copy manually", false);
+      }
+    });
+
+    joinNowBtn.addEventListener("click", ()=>{
+      const code = (codeInput.value || "").trim().toUpperCase();
+      if(code.length < 4){ netSet("Code too short", false); return; }
+      netSet("Connecting…", false);
+      netConnect("join", code);
+    });
+
+    // ---------- Game step/draw ----------
+    function step(dt){
+      const W = gameCanvas.clientWidth;
+      const H = gameCanvas.clientHeight;
+      const d = currentDiff();
+
+      // Player input: hand if present else mouse/slider
+      const inputY = state.handPresent ? state.handYNorm : state.mouseYNorm;
+      const targetPY = inputY * H - ent.paddleP.h/2;
+      ent.paddleP.y += (targetPY - ent.paddleP.y) * 0.25;
+      ent.paddleP.y = clamp(ent.paddleP.y, ent.table.pad, H - ent.table.pad - ent.paddleP.h);
+
+      // Send paddle in friend mode
+      if(state.mode==="friend" && state.net.connected){
+        if(Math.random() < 0.4){
+          netSend({t:"paddle", y:(ent.paddleP.y + ent.paddleP.h/2)/H});
+        }
+      }
+
+      // Right paddle: friend remote or AI
+      if(state.mode==="friend"){
+        const targetAY = state.remoteYNorm * H - ent.paddleA.h/2;
+        ent.paddleA.y += (targetAY - ent.paddleA.y) * 0.35;
+      } else {
+        const aim = ent.ball.y - ent.paddleA.h/2;
+        ent.paddleA.y += (aim - ent.paddleA.y) * d.ai;
+      }
+      ent.paddleA.y = clamp(ent.paddleA.y, ent.table.pad, H - ent.table.pad - ent.paddleA.h);
+
+      // Pinch serve/boost
+      const now = performance.now();
+      if(state.pinchNow && (now - state.lastPinchAt) > 450){
+        state.lastPinchAt = now;
+
+        if(state.ended){
+          resetMatch();
+          startRound();
+        } else if(!state.running){
+          startRound();
+        } else {
+          if(state.mode!=="friend" || state.net.role==="host"){
+            ent.ball.vx *= 1.06; ent.ball.vy *= 1.06;
+          } else {
+            netSend({t:"boost_req"});
+          }
+          beep(980, 0.05, "square", 0.08);
+          showComment(`💥 ${state.playerName} BOOST!`, 650);
+        }
+      }
+
+      // Friend mode: only HOST simulates ball
+      if(state.mode==="friend" && state.net.connected && state.net.role==="join"){
+        return;
+      }
+
+      if(!state.running) return;
+
+      // Ball physics
+      ent.ball.x += ent.ball.vx * dt;
+      ent.ball.y += ent.ball.vy * dt;
+
+      // Wall bounce
+      if(ent.ball.y - ent.ball.r <= ent.table.pad){
+        ent.ball.y = ent.table.pad + ent.ball.r;
+        ent.ball.vy *= -1;
+      }
+      if(ent.ball.y + ent.ball.r >= H - ent.table.pad){
+        ent.ball.y = H - ent.table.pad - ent.ball.r;
+        ent.ball.vy *= -1;
+      }
+
+      // Paddle collisions
+      const p = ent.paddleP, a = ent.paddleA;
+
+      // toward player
+      if(ent.ball.vx < 0){
+        const bx = ent.ball.x - ent.ball.r;
+        const px = p.x + p.w;
+        if(bx <= px && ent.ball.x > p.x && ent.ball.y >= p.y && ent.ball.y <= p.y + p.h){
+          ent.ball.x = px + ent.ball.r;
+          ent.ball.vx *= -1;
+          const hitPos = ((ent.ball.y - p.y)/p.h) - 0.5;
+          ent.ball.vy += hitPos * 560 * d.spin;
+          ent.ball.vx *= 1.02; ent.ball.vy *= 1.01;
+          state.rallies++;
+          beep(760, 0.05, "triangle", 0.08);
+        }
+      }
+
+      // toward right
+      if(ent.ball.vx > 0){
+        const bx = ent.ball.x + ent.ball.r;
+        const ax = a.x;
+        if(bx >= ax && ent.ball.x < a.x + a.w && ent.ball.y >= a.y && ent.ball.y <= a.y + a.h){
+          ent.ball.x = ax - ent.ball.r;
+          ent.ball.vx *= -1;
+          const hitPos = ((ent.ball.y - a.y)/a.h) - 0.5;
+          ent.ball.vy += hitPos * 520 * d.spin;
+          ent.ball.vx *= 1.02; ent.ball.vy *= 1.01;
+          state.rallies++;
+          beep(620, 0.05, "triangle", 0.07);
+        }
+      }
+
+      // Score
+      if(ent.ball.x < -40) addPoint("a");
+      if(ent.ball.x > W + 40) addPoint("p");
+
+      // Clamp speeds
+      const vmax = 1400;
+      ent.ball.vx = clamp(ent.ball.vx, -vmax, vmax);
+      ent.ball.vy = clamp(ent.ball.vy, -vmax, vmax);
+
+      // Host streams state to joiner
+      if(state.mode==="friend" && state.net.connected && state.net.role==="host"){
+        if(Math.random() < 0.55){
+          netSend({t:"state", s:packState()});
+        }
+      }
+
+      updateOverlayText();
+    }
+
+    function drawPaddle(pad, isPlayer){
+      const x=pad.x,y=pad.y,w=pad.w,h=pad.h;
+      g.save();
+      g.shadowColor = isPlayer ? "rgba(110,231,255,.55)" : "rgba(255,94,219,.45)";
+      g.shadowBlur = 18;
+
+      const grad = g.createLinearGradient(x,y,x+w,y+h);
+      grad.addColorStop(0, isPlayer ? "rgba(110,231,255,.70)" : "rgba(255,94,219,.58)");
+      grad.addColorStop(1, "rgba(255,255,255,.10)");
+      g.fillStyle = grad;
+
+      roundRectPath(g, x,y,w,h,10);
+      g.fill();
+
+      g.shadowBlur = 0;
+      g.strokeStyle = "rgba(255,255,255,.20)";
+      g.lineWidth = 1.5;
+      g.stroke();
+
+      g.restore();
+    }
+
+    function draw(){
+      const W = gameCanvas.clientWidth;
+      const H = gameCanvas.clientHeight;
+
+      g.clearRect(0,0,W,H);
+
+      // Table border + center line
+      g.save();
+      g.globalAlpha = 0.85;
+      g.strokeStyle = "rgba(255,255,255,.16)";
+      g.lineWidth = 2;
+      roundRectPath(g, ent.table.pad, ent.table.pad, W-ent.table.pad*2, H-ent.table.pad*2, 18);
+      g.stroke();
+
+      g.setLineDash([10,10]);
+      g.strokeStyle = "rgba(255,255,255,.12)";
+      g.beginPath();
+      g.moveTo(W/2, ent.table.pad+10);
+      g.lineTo(W/2, H-ent.table.pad-10);
+      g.stroke();
+      g.setLineDash([]);
+      g.restore();
+
+      // Paddles
+      drawPaddle(ent.paddleP, true);
+      drawPaddle(ent.paddleA, false);
+
+      // Ball
+      g.save();
+      const grd = g.createRadialGradient(ent.ball.x-2, ent.ball.y-2, 2, ent.ball.x, ent.ball.y, ent.ball.r+10);
+      grd.addColorStop(0, "rgba(255,255,255,1)");
+      grd.addColorStop(1, "rgba(110,231,255,.25)");
+      g.fillStyle = grd;
+      g.shadowColor = "rgba(110,231,255,.55)";
+      g.shadowBlur = 18;
+      g.beginPath();
+      g.arc(ent.ball.x, ent.ball.y, ent.ball.r, 0, Math.PI*2);
+      g.fill();
+      g.restore();
+
+      // Center comment
+      const now = performance.now();
+      if(state.commentText && now < state.commentUntil){
+        const t = clamp((state.commentUntil - now)/1200, 0, 1);
+        const alpha = 1 - t*t;
+        g.save();
+        g.globalAlpha = 0.92 * alpha;
+        g.textAlign = "center";
+        g.textBaseline = "middle";
+        g.font = "900 34px ui-sans-serif, system-ui";
+        g.shadowColor = "rgba(110,231,255,.85)";
+        g.shadowBlur = 26;
+        g.fillStyle = "rgba(255,255,255,1)";
+        g.fillText(state.commentText, W/2, H/2);
+        g.restore();
+      }
+
+      // HUD
+      g.save();
+      g.globalAlpha = 0.9;
+      g.font = "700 12px ui-sans-serif, system-ui";
+      g.fillStyle = "rgba(255,255,255,.65)";
+      const msg = state.mode==="friend"
+        ? (state.net.connected ? (state.net.role==="host" ? "Friend • HOST" : "Friend • JOIN") : "Friend • Not connected")
+        : (state.handPresent ? "Hand control ON" : "Mouse control ON");
+      g.fillText(msg, ent.table.pad + 10, ent.table.pad - 10);
+      g.restore();
+    }
+
+    // ---------- Main loop ----------
+    let lastT = performance.now();
+    let fpsAcc = 0, fpsN = 0, fpsLast = performance.now();
+
+    function loop(){
+      const now = performance.now();
+      const dt = Math.min(0.03, (now - lastT) / 1000);
+      lastT = now;
+
+      step(dt);
+      draw();
+
+      const fps = 1 / dt;
+      fpsAcc += fps; fpsN++;
+      if(now - fpsLast > 300){
+        fpsEl.textContent = "FPS: " + Math.round(fpsAcc / fpsN);
+        fpsAcc = 0; fpsN = 0; fpsLast = now;
+      }
+
+      requestAnimationFrame(loop);
+    }
+
+    // ---------- Init ----------
+    (function init(){
+      const saved = localStorage.getItem("handpong_name");
+      if(saved) state.playerName = saved;
+
+      nameInput.value = state.playerName;
+      updateLabels();
+
+      resize();
+      checkOrientation();
+      updateModeUI();
+      initHands();
+
+      showComment(`👋 Welcome, ${state.playerName}!`, 1400);
+      requestAnimationFrame(loop);
+    })();
+  </script>
+</body>
+</html>
